@@ -31,22 +31,29 @@ func main() {
 	wd, err := os.Getwd()
 	util.Check(err)
 	configPath := filepath.Join(wd, "config.json")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Panicf("Config file '%s' does not exist. Please, create a file using the 'example.config.json'", configPath)
-	}
-	config := model.GetConfigFromFile(configPath)
 
-	if _, err := os.Stat(config.ComposePath); os.IsNotExist(err) {
-		log.Panicf("Invalid path to docker-compose file in 'config.json': %s", config.ComposePath)
+	var config *model.Config
+	data, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		log.Println("We're having problem opening file: ", configPath, ". Please, create a file using the 'example.config.json'")
+		return
 	}
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		log.Println("The config file does not conform to the correct format, error:", err)
+		return
+	}
+
 	rawCompose, err := ioutil.ReadFile(config.ComposePath)
-	util.Check(err)
+	if err != nil {
+		log.Println("Invalid path to docker-compose file in 'config.json'", config.ComposePath)
+		return
+	}
 	composeStr := string(rawCompose)
 
-	login, token := config.Credential.Username, config.Credential.Token
-	c := make(chan model.BuildDescription)
+	c := make(chan model.BuildDescription, 100)
 	for _, job := range config.TrackedJobs {
-		go getInfo(job.URL, login, token, c)
+		go getInfo(job.URL, config.Credential.Username, config.Credential.Token, c)
 	}
 	for i := 0; i < len(config.TrackedJobs); i++ {
 		buildDescription := <-c
