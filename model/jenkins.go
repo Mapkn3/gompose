@@ -4,18 +4,18 @@ import "strings"
 
 // BuildInfo class for collect build info from jenkins
 type BuildInfo struct {
-	Number int
-	URL    string
+	Number int    `json:"number"`
+	URL    string `json:"url"`
 }
 
 // ProjectInfo class for collect project info from jenkins
 type ProjectInfo struct {
-	LastSuccessfulBuild BuildInfo
+	LastSuccessfulBuild BuildInfo `json:"lastSuccessfulBuild"`
 }
 
 // BuildDescription class for persist build comment
 type BuildDescription struct {
-	Description string
+	Description string `json:"description"`
 }
 
 // GetImages returns array of images names

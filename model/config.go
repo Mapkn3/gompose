@@ -2,18 +2,18 @@ package model
 
 // JenkinsCredential class for provide credential for Jenkins
 type JenkinsCredential struct {
-	Username string
-	Token    string
+	Username string `json:"username,required"`
+	Token    string `json:"token,required"`
 }
 
 // JenkinsJob contains info about tracking job
 type JenkinsJob struct {
-	URL string
+	URL string `json:"url,required"`
 }
 
 // Config class for represent configuration file
 type Config struct {
-	Credential  JenkinsCredential
-	ComposePath string
-	TrackedJobs []JenkinsJob
+	Credential  JenkinsCredential `json:"credential,required"`
+	ComposePath string            `json:"composePath,required"`
+	TrackedJobs []JenkinsJob      `json:"trackedJobs,required"`
 }
