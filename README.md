@@ -7,3 +7,8 @@ Before first run:
 Run:
 - In the terminal go to the directory with the `main.go` file.
 - Execute: `go run main.go`
+
+
+# TODO:
+1. Make an example docker-compose.yaml
+2. Make a better readme to explain how it works usaing real data
