@@ -1,5 +1,7 @@
+# Description
 This program replaces docker images with images from the last successful Jenkins build.
 
+# Run
 Before first run:
 - Create a `config.json` file using the `example.config.json` file and fill all <...> places.
 - The files `config.json` and `main.go` must be located in same directory.
@@ -8,66 +10,7 @@ Run:
 - In the terminal go to the directory with the `main.go` file.
 - Execute: `go run main.go`
 
-Example `config.json`:
-```json
-{
-    "credential": {
-        "username": "Markiz",
-        "token": "8721af09df9cb09b8beee7987b98717357"
-    },
-    "composePath": "D:/dockerFiles/docker-compose.yaml",
-    "trackedJobs": [
-        {
-            "url": "http://myjenkinsserver.com/job/backend/job/master/"
-        },
-        {
-            "url": "http://myjenkinsserver.com/job/frontend/job/master/"
-        }
-    ]
-}
-```
-Example `docker-compose.yaml`:
-```yaml
-networks:
-  local:
-    driver: bridge
-    ipam:
-      config:
-        - gateway: 123.45.0.1
-          subnet: 123.45.0.0/16
-      driver: default
-
-services:
-  backend:
-    image: nexus.myserver.com/backend:2.0.3
-    environment:
-      TERM: xterm
-      DEBUG: "true"
-      DEBUG_PORT: "8787"
-    networks:
-      local:
-        ipv4_address: 123.45.0.2
-    ports:
-      - 127.0.0.1:8080:8080
-      - 127.0.0.1:8787:8787
-    volumes:
-      - "D:/dockerFiles/backend-data:/opt/jboss/server/default:rw"
-
-  frontend:
-    image: nexus.myserver.com/frontend:5.1.7
-    environment:
-      TERM: xterm
-    depends_on:
-      - backend
-    networks:
-      local:
-        ipv4_address: 123.45.0.3
-    ports:
-      - 127.0.0.1:8080:8080
-
-version: "2.0"
-```
-
+# How it works
 Do request GET `config.TrackedJobs[0].URL` and parse response:
 ```json
 {
@@ -314,3 +257,64 @@ Do request GET `response.lastSuccessfulBuild.url` and parse response:
 And we get `response.description` that contains docker images names.
 
 Next we find the string `nexus.myserver.com/backend:2.0.3` using the regexp string `nexus.myserver.com/backend:\S` in `docker-compose.yaml` and replace it with `nexus.myserver.com/backend:2.0.4` from `response.description`.
+
+# Examples
+Example `config.json`:
+```json
+{
+    "credential": {
+        "username": "Markiz",
+        "token": "8721af09df9cb09b8beee7987b98717357"
+    },
+    "composePath": "D:/dockerFiles/docker-compose.yaml",
+    "trackedJobs": [
+        {
+            "url": "http://myjenkinsserver.com/job/backend/job/master/"
+        },
+        {
+            "url": "http://myjenkinsserver.com/job/frontend/job/master/"
+        }
+    ]
+}
+```
+Example `docker-compose.yaml`:
+```yaml
+networks:
+  local:
+    driver: bridge
+    ipam:
+      config:
+        - gateway: 123.45.0.1
+          subnet: 123.45.0.0/16
+      driver: default
+
+services:
+  backend:
+    image: nexus.myserver.com/backend:2.0.3
+    environment:
+      TERM: xterm
+      DEBUG: "true"
+      DEBUG_PORT: "8787"
+    networks:
+      local:
+        ipv4_address: 123.45.0.2
+    ports:
+      - 127.0.0.1:8080:8080
+      - 127.0.0.1:8787:8787
+    volumes:
+      - "D:/dockerFiles/backend-data:/opt/jboss/server/default:rw"
+
+  frontend:
+    image: nexus.myserver.com/frontend:5.1.7
+    environment:
+      TERM: xterm
+    depends_on:
+      - backend
+    networks:
+      local:
+        ipv4_address: 123.45.0.3
+    ports:
+      - 127.0.0.1:8080:8080
+
+version: "2.0"
+```
