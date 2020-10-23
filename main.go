@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"io/ioutil"
 	"log"
 	"os"
@@ -15,6 +16,7 @@ import (
 )
 
 func getInfo(baseURL string, username string, password string, c chan model.BuildDescription) {
+	log.Printf("Begin processing: %s", baseURL)
 	APIURLPostfix := "api/json"
 	projectInfoResponse := net.DoRequestWithBasicAuth(baseURL+APIURLPostfix, username, password)
 	var projectInfo model.ProjectInfo
@@ -24,16 +26,21 @@ func getInfo(baseURL string, username string, password string, c chan model.Buil
 	var buildDescription model.BuildDescription
 	err = json.Unmarshal(buildDescriptionResponse, &buildDescription)
 	util.Check(err)
+	log.Printf("End processing: %s", baseURL)
 	c <- buildDescription
 }
 
 func main() {
 	wd, err := os.Getwd()
 	util.Check(err)
-	configPath := filepath.Join(wd, "config.json")
+	defaultConfigPath := filepath.Join(wd, "config.json")
 
+	configPath := flag.String("config", defaultConfigPath, "the path to the docker-compose.yaml")
+	flag.Parse()
+
+	log.Printf("The path to the config file: %s", *configPath)
 	var config *model.Config
-	data, err := ioutil.ReadFile(configPath)
+	data, err := ioutil.ReadFile(*configPath)
 	if err != nil {
 		log.Println("We're having problem opening file: ", configPath, ". Please, create a file using the 'example.config.json'")
 		return
