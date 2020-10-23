@@ -11,7 +11,7 @@ Run:
 - Execute: `go run main.go`
 
 # How it works
-Do request GET `config.TrackedJobs[0].URL` and parse response:
+Do request GET `config.projects[0].TrackedJobs[0].URL` and parse response:
 ```json
 {
     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowJob",
@@ -266,18 +266,35 @@ Example `config.json`:
         "username": "Markiz",
         "token": "8721af09df9cb09b8beee7987b98717357"
     },
-    "composePath": "D:/dockerFiles/docker-compose.yaml",
-    "trackedJobs": [
+    "projects": [
         {
-            "url": "http://myjenkinsserver.com/job/backend/job/master/"
+            "name": "Main project",
+            "composePath": "D:/main-project/dockerFiles/docker-compose.yaml",
+            "trackedJobs": [
+                {
+                    "url": "http://myjenkinsserver.com/job/backend/job/master/"
+                },
+                {
+                    "url": "http://myjenkinsserver.com/job/frontend/job/master/"
+                }
+            ]
         },
         {
-            "url": "http://myjenkinsserver.com/job/frontend/job/master/"
+            "name": "Additional project",
+            "composePath": "D:/additional-project/dockerFiles/docker-compose.yaml",
+            "trackedJobs": [
+                {
+                    "url": "http://myjenkinsserver.com/job/backend/job/master/"
+                },
+                {
+                    "url": "http://myjenkinsserver.com/job/frontend/job/master/"
+                }
+            ]
         }
     ]
 }
 ```
-Example `docker-compose.yaml`:
+Example `D:/main-project/dockerFiles/docker-compose.yaml`:
 ```yaml
 networks:
   local:
