@@ -8,12 +8,19 @@ type JenkinsCredential struct {
 
 // JenkinsJob contains info about tracking job
 type JenkinsJob struct {
-	URL string `json:"url,required"`
+	Name string `json:"name,required"`
+	URL  string `json:"url,required"`
+}
+
+// Project contains info about certain project
+type Project struct {
+	Name        string       `json:"name,required"`
+	ComposePath string       `json:"composePath,required"`
+	TrackedJobs []JenkinsJob `json:"trackedJobs,required"`
 }
 
 // Config class for represent configuration file
 type Config struct {
-	Credential  JenkinsCredential `json:"credential,required"`
-	ComposePath string            `json:"composePath,required"`
-	TrackedJobs []JenkinsJob      `json:"trackedJobs,required"`
+	Credential JenkinsCredential `json:"credential,required"`
+	Projects   []Project         `json:"projects,required"`
 }

@@ -30,6 +30,32 @@ func getInfo(baseURL string, username string, password string, c chan model.Buil
 	c <- buildDescription
 }
 
+func doProjectProcessing(project model.Project, done chan string) {
+	rawCompose, err := ioutil.ReadFile(project.ComposePath)
+	if err != nil {
+		log.Println("Invalid path to docker-compose file [", project.ComposePath, "] in 'config.json' in project", project.Name)
+		return
+	}
+	composeStr := string(rawCompose)
+
+	c := make(chan model.BuildDescription, 100)
+	for _, job := range project.TrackedJobs {
+		go getInfo(job.URL, config.Credential.Username, config.Credential.Token, c)
+	}
+	for i := 0; i < len(project.TrackedJobs); i++ {
+		buildDescription := <-c
+		for _, image := range buildDescription.GetImages() {
+			re := regexp.MustCompile(strings.Split(image, ":")[0] + `:\S+`)
+			composeStr = re.ReplaceAllString(composeStr, image)
+		}
+	}
+	err = ioutil.WriteFile(project.ComposePath, []byte(composeStr), 0666)
+	util.Check(err)
+	done <- project.Name
+}
+
+var config *model.Config
+
 func main() {
 	wd, err := os.Getwd()
 	util.Check(err)
@@ -39,7 +65,6 @@ func main() {
 	flag.Parse()
 
 	log.Printf("The path to the config file: %s", *configPath)
-	var config *model.Config
 	data, err := ioutil.ReadFile(*configPath)
 	if err != nil {
 		log.Println("We're having problem opening file: ", configPath, ". Please, create a file using the 'example.config.json'")
@@ -51,24 +76,13 @@ func main() {
 		return
 	}
 
-	rawCompose, err := ioutil.ReadFile(config.ComposePath)
-	if err != nil {
-		log.Println("Invalid path to docker-compose file in 'config.json'", config.ComposePath)
-		return
+	done := make(chan string, 100)
+	for _, project := range config.Projects {
+		log.Printf("Begin project processing for %s", project.Name)
+		go doProjectProcessing(project, done)
 	}
-	composeStr := string(rawCompose)
-
-	c := make(chan model.BuildDescription, 100)
-	for _, job := range config.TrackedJobs {
-		go getInfo(job.URL, config.Credential.Username, config.Credential.Token, c)
+	for i := 0; i < len(config.Projects); i++ {
+		projectName := <-done
+		log.Printf("%s - done!", projectName)
 	}
-	for i := 0; i < len(config.TrackedJobs); i++ {
-		buildDescription := <-c
-		for _, image := range buildDescription.GetImages() {
-			re := regexp.MustCompile(strings.Split(image, ":")[0] + `:\S+`)
-			composeStr = re.ReplaceAllString(composeStr, image)
-		}
-	}
-	err = ioutil.WriteFile(config.ComposePath, []byte(composeStr), 0666)
-	util.Check(err)
 }
