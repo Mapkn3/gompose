@@ -3,16 +3,42 @@
         "username": "<username>",
         "token": "<API token from http://<jenkins-url>/user/<username>/configure"
     },
-    "composePath": "<path to docker-compose.yml>",
-    "trackedJobs": [
+    "projects": [
         {
-            "url": "http://<jenkins-url>/job/<project1>/job/<branch>/"
+            "name": "<project 1 name>",
+            "composePath": "<path to docker-compose.yaml for project 1>",
+            "trackedJobs": [
+                {
+                    "name": "<project 1 job 1>",
+                    "url": "http://<jenkins-url>/job/<job1>/job/<branch>/"
+                },
+                {
+                    "name": "<project 1 job 2>",
+                    "url": "http://<jenkins-url>/job/<job2>/job/<branch>/"
+                },
+                {
+                    "name": "<project 1 job 3>",
+                    "url": "http://<jenkins-url>/job/<job3>/job/<branch>/"
+                }
+            ]
         },
         {
-            "url": "http://<jenkins-url>/job/<project2>/job/<branch>/"
-        },
-        {
-            "url": "http://<jenkins-url>/job/<project3>/job/<branch>/"
+            "name": "<project 2 name>",
+            "composePath": "<path to project 2 docker-compose.yaml>",
+            "trackedJobs": [
+                {
+                    "name": "<project 2 job 1>",
+                    "url": "http://<jenkins-url>/job/<job1>/job/<branch>/"
+                },
+                {
+                    "name": "<project 2 job 2>",
+                    "url": "http://<jenkins-url>/job/<job2>/job/<branch>/"
+                },
+                {
+                    "name": "<project 2 job 3>",
+                    "url": "http://<jenkins-url>/job/<job3>/job/<branch>/"
+                }
+            ]
         }
     ]
 }
