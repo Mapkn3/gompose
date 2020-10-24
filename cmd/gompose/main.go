@@ -15,10 +15,32 @@ import (
 	"github.com/mapkn3/gompose/pkg/util"
 )
 
-func getInfo(baseURL string, username string, password string, c chan model.BuildDescription) {
-	log.Printf("Begin processing: %s", baseURL)
+func jobProcessing(username string, password string, jobChan chan string, imageChan chan string, imageCountChan chan int, quit chan int) {
+	log.Printf("Begin job processing")
+	buildDescriptionChan := make(chan model.BuildDescription, 100)
+	for {
+		select {
+		case url := <-jobChan:
+			log.Printf("Get job URL: %s", url)
+			go getBuildDescription(url, username, password, buildDescriptionChan)
+		case buildDescription := <-buildDescriptionChan:
+			n := len(buildDescription.GetImages())
+			log.Printf("Get %d docker images: %v", n, buildDescription.GetImages())
+			imageCountChan <- n
+			for _, image := range buildDescription.GetImages() {
+				imageChan <- image
+			}
+		case <-quit:
+			log.Printf("End job processing")
+			return
+		}
+	}
+}
+
+func getBuildDescription(jobURL string, username string, password string, buildDescriptionChan chan model.BuildDescription) {
+	log.Printf("Begin getting build description: %s", jobURL)
 	APIURLPostfix := "api/json"
-	projectInfoResponse := net.DoRequestWithBasicAuth(baseURL+APIURLPostfix, username, password)
+	projectInfoResponse := net.DoRequestWithBasicAuth(jobURL+APIURLPostfix, username, password)
 	var projectInfo model.ProjectInfo
 	err := json.Unmarshal(projectInfoResponse, &projectInfo)
 	util.Check(err)
@@ -26,11 +48,11 @@ func getInfo(baseURL string, username string, password string, c chan model.Buil
 	var buildDescription model.BuildDescription
 	err = json.Unmarshal(buildDescriptionResponse, &buildDescription)
 	util.Check(err)
-	log.Printf("End processing: %s", baseURL)
-	c <- buildDescription
+	log.Printf("End getting build description: %s", jobURL)
+	buildDescriptionChan <- buildDescription
 }
 
-func doProjectProcessing(project model.Project, done chan string) {
+func projectProcessing(project model.Project, done chan string) {
 	rawCompose, err := ioutil.ReadFile(project.ComposePath)
 	if err != nil {
 		log.Println("Invalid path to docker-compose file [", project.ComposePath, "] in 'config.json' in project", project.Name)
@@ -38,17 +60,24 @@ func doProjectProcessing(project model.Project, done chan string) {
 	}
 	composeStr := string(rawCompose)
 
-	c := make(chan model.BuildDescription, 100)
+	jobChan := make(chan string, 100)
+	imageChan := make(chan string, 100)
+	imageCountChan := make(chan int, 100)
+	quit := make(chan int, 100)
+	go jobProcessing(config.Credential.Username, config.Credential.Token, jobChan, imageChan, imageCountChan, quit)
+
 	for _, job := range project.TrackedJobs {
-		go getInfo(job.URL, config.Credential.Username, config.Credential.Token, c)
+		jobChan <- job.URL
 	}
 	for i := 0; i < len(project.TrackedJobs); i++ {
-		buildDescription := <-c
-		for _, image := range buildDescription.GetImages() {
+		imageCount := <-imageCountChan
+		for k := 0; k < imageCount; k++ {
+			image := <-imageChan
 			re := regexp.MustCompile(strings.Split(image, ":")[0] + `:\S+`)
 			composeStr = re.ReplaceAllString(composeStr, image)
 		}
 	}
+	quit <- 0
 	err = ioutil.WriteFile(project.ComposePath, []byte(composeStr), 0666)
 	util.Check(err)
 	done <- project.Name
@@ -79,7 +108,7 @@ func main() {
 	done := make(chan string, 100)
 	for _, project := range config.Projects {
 		log.Printf("Begin project processing for %s", project.Name)
-		go doProjectProcessing(project, done)
+		go projectProcessing(project, done)
 	}
 	for i := 0; i < len(config.Projects); i++ {
 		projectName := <-done
