@@ -90,7 +90,7 @@ func main() {
 	util.Check(err)
 	defaultConfigPath := filepath.Join(wd, "config.json")
 
-	configPath := flag.String("config", defaultConfigPath, "the path to the docker-compose.yaml")
+	configPath := flag.String("config", defaultConfigPath, "the path to the config.json")
 	flag.Parse()
 
 	log.Printf("The path to the config file: %s", *configPath)
