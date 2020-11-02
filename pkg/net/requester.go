@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/mapkn3/gompose/util"
+	"github.com/mapkn3/gompose/pkg/util"
 )
 
 // DoRequestWithBasicAuth does request and returns response like byte array

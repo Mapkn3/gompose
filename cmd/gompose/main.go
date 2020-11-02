@@ -10,9 +10,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/mapkn3/gompose/model"
-	"github.com/mapkn3/gompose/net"
-	"github.com/mapkn3/gompose/util"
+	"github.com/mapkn3/gompose/internal/model"
+	"github.com/mapkn3/gompose/pkg/net"
+	"github.com/mapkn3/gompose/pkg/util"
 )
 
 func getInfo(baseURL string, username string, password string, c chan model.BuildDescription) {
