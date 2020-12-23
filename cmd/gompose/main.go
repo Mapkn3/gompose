@@ -9,33 +9,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/mapkn3/gompose/internal/model"
 	"github.com/mapkn3/gompose/pkg/net"
 	"github.com/mapkn3/gompose/pkg/util"
 )
-
-func jobProcessing(username string, password string, jobChan chan string, imageChan chan string, imageCountChan chan int, quit chan int) {
-	log.Printf("Begin job processing")
-	buildDescriptionChan := make(chan model.BuildDescription, 100)
-	for {
-		select {
-		case url := <-jobChan:
-			log.Printf("Get job URL: %s", url)
-			go getBuildDescription(url, username, password, buildDescriptionChan)
-		case buildDescription := <-buildDescriptionChan:
-			n := len(buildDescription.GetImages())
-			log.Printf("Get %d docker images: %v", n, buildDescription.GetImages())
-			imageCountChan <- n
-			for _, image := range buildDescription.GetImages() {
-				imageChan <- image
-			}
-		case <-quit:
-			log.Printf("End job processing")
-			return
-		}
-	}
-}
 
 func getBuildDescription(jobURL string, username string, password string, buildDescriptionChan chan model.BuildDescription) {
 	log.Printf("Begin getting build description: %s", jobURL)
@@ -52,7 +31,9 @@ func getBuildDescription(jobURL string, username string, password string, buildD
 	buildDescriptionChan <- buildDescription
 }
 
-func projectProcessing(project model.Project, done chan string) {
+func projectProcessing(project model.Project, projectWG *sync.WaitGroup) {
+	defer projectWG.Done()
+
 	rawCompose, err := ioutil.ReadFile(project.ComposePath)
 	if err != nil {
 		log.Println("Invalid path to docker-compose file [", project.ComposePath, "] in 'config.json' in project", project.Name)
@@ -60,27 +41,33 @@ func projectProcessing(project model.Project, done chan string) {
 	}
 	composeStr := string(rawCompose)
 
-	jobChan := make(chan string, 100)
-	imageChan := make(chan string, 100)
-	imageCountChan := make(chan int, 100)
-	quit := make(chan int, 100)
-	go jobProcessing(config.Credential.Username, config.Credential.Token, jobChan, imageChan, imageCountChan, quit)
+	buildDescriptionChan := make(chan model.BuildDescription, 30)
+	var buildDescriptionWG sync.WaitGroup
 
 	for _, job := range project.TrackedJobs {
-		jobChan <- job.URL
+		buildDescriptionWG.Add(1)
+		url := job.URL
+		log.Printf("Get job URL: %s", url)
+		go getBuildDescription(url, config.Credential.Username, config.Credential.Token, buildDescriptionChan)
+
 	}
-	for i := 0; i < len(project.TrackedJobs); i++ {
-		imageCount := <-imageCountChan
-		for k := 0; k < imageCount; k++ {
-			image := <-imageChan
+	go func() {
+		buildDescriptionWG.Wait()
+		close(buildDescriptionChan)
+	}()
+	for buildDescription := range buildDescriptionChan {
+		n := len(buildDescription.GetImages())
+		log.Printf("Get %d docker images: %v", n, buildDescription.GetImages())
+		for _, image := range buildDescription.GetImages() {
 			re := regexp.MustCompile(strings.Split(image, ":")[0] + `:\S+`)
 			composeStr = re.ReplaceAllString(composeStr, image)
 		}
+		buildDescriptionWG.Done()
 	}
-	quit <- 0
+
 	err = ioutil.WriteFile(project.ComposePath, []byte(composeStr), 0666)
 	util.Check(err)
-	done <- project.Name
+	log.Printf("%s - done!", project.Name)
 }
 
 var config *model.Config
@@ -105,13 +92,11 @@ func main() {
 		return
 	}
 
-	done := make(chan string, 100)
+	var projectWG sync.WaitGroup
 	for _, project := range config.Projects {
+		projectWG.Add(1)
 		log.Printf("Begin project processing for %s", project.Name)
-		go projectProcessing(project, done)
+		go projectProcessing(project, &projectWG)
 	}
-	for i := 0; i < len(config.Projects); i++ {
-		projectName := <-done
-		log.Printf("%s - done!", projectName)
-	}
+	projectWG.Wait()
 }
